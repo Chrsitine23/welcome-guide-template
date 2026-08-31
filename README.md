@@ -1,1 +1,1 @@
-# welcome-guide-template
+# airbnb-default-template
