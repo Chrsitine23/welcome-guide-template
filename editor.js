@@ -2,50 +2,62 @@
   'use strict';
 
   /* =========================================================
-     SUPABASE CONFIG
+     ANGELICA AQUA VISTA — CLIENT EDITOR
+     Works with:
+       /edit/YOUR_EDIT_TOKEN
+       /g/YOUR_PUBLIC_ID
+       ?edit=YOUR_EDIT_TOKEN
+       ?guide=YOUR_PUBLIC_ID
      ========================================================= */
-
-  const configReady = () =>
-      window.SUPABASE_URL &&
-      !window.SUPABASE_URL.includes('PASTE_') &&
-      window.SUPABASE_ANON_KEY &&
-      !window.SUPABASE_ANON_KEY.includes('PASTE_');
 
   let client = null;
   let guide = null;
   let editorToken = null;
   let publicId = null;
 
+  /* =========================================================
+     SUPABASE CONFIG
+  ========================================================= */
+
+  function configReady() {
+    return (
+        window.SUPABASE_URL &&
+        !window.SUPABASE_URL.includes('PASTE_') &&
+        window.SUPABASE_ANON_KEY &&
+        !window.SUPABASE_ANON_KEY.includes('PASTE_')
+    );
+  }
 
   /* =========================================================
      ROUTING
-     ========================================================= */
+  ========================================================= */
 
   function route() {
-    const parts = location.pathname
+    const path = location.pathname
         .replace(/^\/+|\/+$/g, '')
         .split('/')
         .filter(Boolean);
 
-    // /edit/TOKEN
-    if (parts[0] === 'edit' && parts[1]) {
+    // /edit/xxxxx
+    if (path[0] === 'edit' && path[1]) {
       return {
         mode: 'edit',
-        value: parts[1]
+        value: decodeURIComponent(path[1])
       };
     }
 
-    // /g/PUBLIC_ID
-    if (parts[0] === 'g' && parts[1]) {
+    // /g/xxxxx
+    if (path[0] === 'g' && path[1]) {
       return {
         mode: 'guest',
-        value: parts[1]
+        value: decodeURIComponent(path[1])
       };
     }
 
+    // ?edit=xxxxx
+    // ?guide=xxxxx
     const params = new URLSearchParams(location.search);
 
-    // ?edit=TOKEN
     if (params.get('edit')) {
       return {
         mode: 'edit',
@@ -53,7 +65,6 @@
       };
     }
 
-    // ?guide=PUBLIC_ID
     if (params.get('guide')) {
       return {
         mode: 'guest',
@@ -67,75 +78,77 @@
     };
   }
 
-
   /* =========================================================
-     SECURITY / HTML ESCAPING
-     ========================================================= */
+     SECURITY / HTML ESCAPE
+  ========================================================= */
 
   function escapeHtml(value) {
     return String(value ?? '').replace(
         /[&<>'"]/g,
-        c => ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          "'": '&#39;',
-          '"': '&quot;'
-        }[c])
+        function (char) {
+          return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+          }[char];
+        }
     );
   }
 
-
   /* =========================================================
-     TEXT HELPERS
-     ========================================================= */
+     DOM HELPERS
+  ========================================================= */
 
   function setText(id, value) {
-    const el = document.getElementById(id);
+    const element = document.getElementById(id);
 
     if (
-        el &&
+        element &&
         value !== null &&
         value !== undefined
     ) {
-      el.textContent = value;
+      element.textContent = value;
     }
   }
-
 
   function setValue(id, value) {
-    const el = document.getElementById(id);
+    const element = document.getElementById(id);
 
-    if (
-        el &&
-        value !== null &&
-        value !== undefined
-    ) {
-      el.value = value;
+    if (element) {
+      element.value = value || '';
     }
   }
 
-
   /* =========================================================
-     APPLY GUIDE DATA TO GUEST PAGE
-     ========================================================= */
+     APPLY GUIDE DATA TO WEBSITE
+  ========================================================= */
 
   function applyGuide(g) {
     if (!g) return;
 
-
-    /* ---------------------------------------------------------
-       PROPERTY
-       --------------------------------------------------------- */
-
+    // Property
     setText(
         'property-name',
         g.property_name || 'Welcome Home'
     );
 
+    // Cover
     setText(
-        'cover-location',
+        'cover-location-text',
         g.address || 'Your destination'
+    );
+
+    // Welcome
+    setText(
+        'welcome-title',
+        g.welcome_title || 'Welcome! 👋'
+    );
+
+    setText(
+        'welcome-message',
+        g.welcome_message || 'Welcome to your stay.'
     );
 
     setText(
@@ -148,114 +161,14 @@
         g.address || ''
     );
 
-
-    /* ---------------------------------------------------------
-       WELCOME
-       --------------------------------------------------------- */
-
-    setText(
-        'welcome-title',
-        g.welcome_title || 'Welcome! 👋'
-    );
-
-    setText(
-        'welcome-message',
-        g.welcome_message || 'Welcome to your stay.'
-    );
-
+    // Dashboard
     setText(
         'dashboard-description',
         g.welcome_message ||
         'Everything you need for a comfortable stay.'
     );
 
-
-    /* ---------------------------------------------------------
-       ROOM / STAY DETAILS
-       --------------------------------------------------------- */
-
-    if (g.room) {
-      setText('welcome-room', g.room);
-    }
-
-    if (g.room_number) {
-      setText('welcome-room', g.room_number);
-    }
-
-    if (g.unit) {
-      setText('welcome-room', g.unit);
-    }
-
-    if (g.unit_number) {
-      setText('welcome-room', g.unit_number);
-    }
-
-    if (g.size) {
-      setText('stay-size', g.size);
-    }
-
-    if (g.beds) {
-      setText('stay-beds', g.beds);
-    }
-
-    if (g.bathrooms) {
-      setText('stay-bathrooms', g.bathrooms);
-    }
-
-    if (g.bedrooms) {
-      setText('stay-bedrooms', g.bedrooms);
-    }
-
-    if (g.stay_extra) {
-      setText('stay-extra', g.stay_extra);
-    }
-
-
-    /* ---------------------------------------------------------
-       CHECK-IN
-       --------------------------------------------------------- */
-
-    setText(
-        'welcome-checkin-time',
-        g.check_in || '2:00 PM'
-    );
-
-
-    /* ---------------------------------------------------------
-       AIRPORT / LOBBY
-       --------------------------------------------------------- */
-
-    if (g.airport_transport) {
-      setText(
-          'airport-transport',
-          g.airport_transport
-      );
-    }
-
-    if (g.lobby_name) {
-      setText(
-          'lobby-name',
-          g.lobby_name
-      );
-    }
-
-
-    /* ---------------------------------------------------------
-       GUIDE MESSAGE
-       --------------------------------------------------------- */
-
-    if (g.guide_message) {
-      setText(
-          'guide-message',
-          g.guide_message
-      );
-    }
-
-
-    /* ---------------------------------------------------------
-       WIFI
-       --------------------------------------------------------- */
-
+    // Wi-Fi
     setText(
         'wifi-name',
         g.wifi_name || ''
@@ -266,11 +179,7 @@
         g.wifi_password || ''
     );
 
-
-    /* ---------------------------------------------------------
-       CONTACT
-       --------------------------------------------------------- */
-
+    // Host
     setText(
         'host-name',
         g.host_name || ''
@@ -281,67 +190,63 @@
         g.host_phone || ''
     );
 
+    // Check-in
+    setText(
+        'check-in-time',
+        g.check_in || ''
+    );
 
-    /* ---------------------------------------------------------
-       CHECK-OUT
-       --------------------------------------------------------- */
+    setText(
+        'check-out-time',
+        g.check_out || ''
+    );
 
-    // Find checkout time in existing HTML
-    const checkoutPage = document.getElementById('checkout');
-
-    if (checkoutPage && g.check_out) {
-      const checkoutTime = checkoutPage.querySelector(
-          '.info-block strong'
-      );
-
-      if (checkoutTime) {
-        checkoutTime.textContent = g.check_out;
-      }
-    }
-
-
-    /* ---------------------------------------------------------
-       GOOGLE MAPS
-       --------------------------------------------------------- */
-
+    // Google Maps
     if (g.google_maps_url) {
       document
           .querySelectorAll(
-              'a[href*="google.com/maps"], a[href*="maps.app.goo.gl"]'
+              'a[href*="google.com/maps"], a[data-map-link]'
           )
-          .forEach(a => {
-            a.href = g.google_maps_url;
+          .forEach(function (link) {
+            link.href = g.google_maps_url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
           });
     }
 
-
-    /* ---------------------------------------------------------
-       DYNAMIC AIRBNB / FACEBOOK / PHONE
-       --------------------------------------------------------- */
-
-    if (g.host_phone) {
-      document
-          .querySelectorAll('a[href^="tel:"]')
-          .forEach(a => {
-            const text = a.textContent.trim();
-
-            if (
-                text.includes('Host') ||
-                text.includes('0995') ||
-                text.includes('Phone')
-            ) {
-              a.href =
-                  'tel:' +
-                  g.host_phone.replace(/\s+/g, '');
-            }
-          });
-    }
+    // Update editor fields if editor exists
+    updateEditorFields(g);
   }
 
+  /* =========================================================
+     UPDATE EDITOR INPUTS
+  ========================================================= */
+
+  function updateEditorFields(g) {
+    if (!g) return;
+
+    const fields = [
+      'property_name',
+      'welcome_title',
+      'welcome_message',
+      'address',
+      'google_maps_url',
+      'check_in',
+      'check_out',
+      'wifi_name',
+      'wifi_password',
+      'host_name',
+      'host_phone'
+    ];
+
+    fields.forEach(function (key) {
+      setValue('e-' + key, g[key]);
+    });
+  }
 
   /* =========================================================
-     SETUP ERROR
-     ========================================================= */
+     ERROR MESSAGE
+  ========================================================= */
 
   function showSetupError(message) {
     const existing =
@@ -351,41 +256,62 @@
       existing.remove();
     }
 
-    const box =
-        document.createElement('div');
+    const box = document.createElement('div');
 
-    box.className =
-        'app-setup-error';
+    box.className = 'app-setup-error';
 
-    box.innerHTML = `
-      <strong>App setup needed</strong>
-      <p>${escapeHtml(message)}</p>
-    `;
+    box.innerHTML =
+        '<strong>Welcome Guide</strong>' +
+        '<p>' +
+        escapeHtml(message) +
+        '</p>' +
+        '<button ' +
+        'onclick="this.parentElement.remove()" ' +
+        'style="' +
+        'margin-top:12px;' +
+        'padding:9px 14px;' +
+        'border:0;' +
+        'border-radius:8px;' +
+        'background:#31483d;' +
+        'color:white;' +
+        'cursor:pointer;' +
+        '">' +
+        'Close' +
+        '</button>';
 
     document.body.appendChild(box);
   }
 
-
   /* =========================================================
      LOAD GUEST GUIDE
-     ========================================================= */
+  ========================================================= */
 
   async function loadGuest(id) {
     if (!id) return;
 
+    if (!client) {
+      showSetupError(
+          'Supabase is not configured yet.'
+      );
+      return;
+    }
+
     try {
-      const {
-        data,
-        error
-      } = await client
+      const result = await client
           .from('guides')
           .select('*')
           .eq('public_id', id)
           .eq('published', true)
           .maybeSingle();
 
+      const data = result.data;
+      const error = result.error;
+
       if (error) {
-        showSetupError(error.message);
+        showSetupError(
+            'Could not load the guest guide: ' +
+            error.message
+        );
         return;
       }
 
@@ -403,49 +329,58 @@
 
     } catch (error) {
       showSetupError(
-          'Unable to load the guest guide.'
+          'Something went wrong while loading the guide: ' +
+          error.message
       );
-
-      console.error(error);
     }
   }
 
-
   /* =========================================================
      LOAD EDITOR
-     ========================================================= */
+  ========================================================= */
 
   async function loadEditor(token) {
+    if (!token) {
+      showSetupError(
+          'No editor token was provided.'
+      );
+      return;
+    }
+
+    if (!client) {
+      showSetupError(
+          'Supabase is not configured yet.'
+      );
+      return;
+    }
+
     try {
-      const {
-        data,
-        error
-      } = await client.rpc(
+      const result = await client.rpc(
           'get_guide_for_editor',
           {
             p_edit_token: token
           }
       );
 
+      const data = result.data;
+      const error = result.error;
+
       if (error) {
         showSetupError(
             'Editor could not be opened: ' +
             error.message
         );
-
         return;
       }
 
-      guide =
-          Array.isArray(data)
-              ? data[0]
-              : data;
+      guide = Array.isArray(data)
+          ? data[0]
+          : data;
 
       if (!guide) {
         showSetupError(
             'This editing link is invalid or expired.'
         );
-
         return;
       }
 
@@ -457,40 +392,29 @@
       createEditor();
 
     } catch (error) {
-      console.error(error);
-
       showSetupError(
-          'Unable to open the editor.'
+          'Something went wrong while opening the editor: ' +
+          error.message
       );
     }
   }
 
-
   /* =========================================================
      CREATE EDITOR PANEL
-     ========================================================= */
+  ========================================================= */
 
   function createEditor() {
-    if (
-        document.getElementById(
-            'editor-panel'
-        )
-    ) {
+    if (document.getElementById('editor-panel')) {
       return;
     }
 
-    document.body.classList.add(
-        'editor-mode'
-    );
+    document.body.classList.add('editor-mode');
 
-    const panel =
-        document.createElement('aside');
+    const panel = document.createElement('aside');
 
-    panel.id =
-        'editor-panel';
+    panel.id = 'editor-panel';
 
     panel.innerHTML = `
-
       <div class="editor-topbar">
 
         <div>
@@ -506,8 +430,9 @@
         <button
           id="close-editor"
           class="editor-close"
-          title="Close editor"
           type="button"
+          title="Close editor"
+          aria-label="Close editor"
         >
           ×
         </button>
@@ -527,24 +452,24 @@
 
         <button
           class="editor-tab active"
-          data-tab="welcome"
           type="button"
+          data-tab="welcome"
         >
           Welcome
         </button>
 
         <button
           class="editor-tab"
-          data-tab="stay"
           type="button"
+          data-tab="stay"
         >
           Stay Details
         </button>
 
         <button
           class="editor-tab"
-          data-tab="contact"
           type="button"
+          data-tab="contact"
         >
           Contact
         </button>
@@ -554,8 +479,7 @@
 
       <div class="editor-body">
 
-
-        <!-- ================= WELCOME ================= -->
+        <!-- WELCOME -->
 
         <section
           class="editor-section active"
@@ -568,7 +492,7 @@
             <input
               id="e-property_name"
               type="text"
-              autocomplete="off"
+              placeholder="Angelica Aqua Vista"
             >
           </label>
 
@@ -579,7 +503,7 @@
             <input
               id="e-welcome_title"
               type="text"
-              autocomplete="off"
+              placeholder="Welcome!"
             >
           </label>
 
@@ -589,7 +513,8 @@
 
             <textarea
               id="e-welcome_message"
-              rows="4"
+              rows="5"
+              placeholder="Welcome to your stay..."
             ></textarea>
           </label>
 
@@ -600,6 +525,7 @@
             <textarea
               id="e-address"
               rows="3"
+              placeholder="Your complete property address"
             ></textarea>
           </label>
 
@@ -617,7 +543,7 @@
         </section>
 
 
-        <!-- ================= STAY ================= -->
+        <!-- STAY -->
 
         <section
           class="editor-section"
@@ -652,7 +578,7 @@
             <input
               id="e-wifi_name"
               type="text"
-              autocomplete="off"
+              placeholder="Wi-Fi network name"
             >
           </label>
 
@@ -663,14 +589,14 @@
             <input
               id="e-wifi_password"
               type="text"
-              autocomplete="off"
+              placeholder="Wi-Fi password"
             >
           </label>
 
         </section>
 
 
-        <!-- ================= CONTACT ================= -->
+        <!-- CONTACT -->
 
         <section
           class="editor-section"
@@ -683,7 +609,7 @@
             <input
               id="e-host_name"
               type="text"
-              autocomplete="off"
+              placeholder="Host name"
             >
           </label>
 
@@ -694,7 +620,7 @@
             <input
               id="e-host_phone"
               type="text"
-              autocomplete="off"
+              placeholder="+63..."
             >
           </label>
 
@@ -713,15 +639,13 @@
           Save Changes
         </button>
 
-
         <button
           id="guest-preview"
           class="secondary-action"
           type="button"
         >
-          Preview Guest
+          Preview Guest Guide
         </button>
-
 
         <button
           id="copy-link"
@@ -732,97 +656,54 @@
         </button>
 
       </div>
-
     `;
 
     document.body.appendChild(panel);
 
+    /* -----------------------------------------
+       Fill fields
+    ----------------------------------------- */
 
-    /* =======================================================
-       LOAD CURRENT VALUES INTO EDITOR
-       ======================================================= */
+    updateEditorFields(guide);
 
-    const fields = [
-      'property_name',
-      'welcome_title',
-      'welcome_message',
-      'address',
-      'google_maps_url',
-      'check_in',
-      'check_out',
-      'wifi_name',
-      'wifi_password',
-      'host_name',
-      'host_phone'
-    ];
-
-
-    fields.forEach(key => {
-
-      const input =
-          document.getElementById(
-              'e-' + key
-          );
-
-      if (!input) return;
-
-      input.value =
-          guide[key] || '';
-
-    });
-
-
-    /* =======================================================
-       TABS
-       ======================================================= */
+    /* -----------------------------------------
+       Tabs
+    ----------------------------------------- */
 
     panel
-        .querySelectorAll(
-            '.editor-tab'
-        )
-        .forEach(button => {
+        .querySelectorAll('.editor-tab')
+        .forEach(function (button) {
 
           button.addEventListener(
               'click',
-              () => {
+              function () {
+
+                const tab =
+                    button.dataset.tab;
 
                 panel
-                    .querySelectorAll(
-                        '.editor-tab'
-                    )
-                    .forEach(btn =>
-                        btn.classList.remove(
-                            'active'
-                        )
-                    );
-
+                    .querySelectorAll('.editor-tab')
+                    .forEach(function (btn) {
+                      btn.classList.remove('active');
+                    });
 
                 panel
-                    .querySelectorAll(
-                        '.editor-section'
-                    )
-                    .forEach(section =>
-                        section.classList.remove(
-                            'active'
-                        )
-                    );
+                    .querySelectorAll('.editor-section')
+                    .forEach(function (section) {
+                      section.classList.remove('active');
+                    });
 
+                button.classList.add('active');
 
-                button.classList.add(
-                    'active'
-                );
-
-
-                const target =
+                const section =
                     panel.querySelector(
-                        `[data-section="${button.dataset.tab}"]`
+                        '[data-section="' +
+                        tab +
+                        '"]'
                     );
 
-
-                if (target) {
-                  target.classList.add(
-                      'active'
-                  );
+                if (section) {
+                  section.classList.add('active');
                 }
 
               }
@@ -830,150 +711,131 @@
 
         });
 
-
-    /* =======================================================
-       CLOSE EDITOR
-       ======================================================= */
-
-    document
-        .getElementById(
-            'close-editor'
-        )
-        .onclick = () => {
-
-      panel.remove();
-
-      document.body.classList.remove(
-          'editor-mode'
-      );
-
-    };
-
-
-    /* =======================================================
-       SAVE
-       ======================================================= */
+    /* -----------------------------------------
+       Close editor
+    ----------------------------------------- */
 
     document
-        .getElementById(
-            'save-guide'
-        )
-        .onclick = saveGuide;
+        .getElementById('close-editor')
+        .addEventListener(
+            'click',
+            function () {
 
+              panel.remove();
 
-    /* =======================================================
-       PREVIEW
-       ======================================================= */
+              document.body.classList.remove(
+                  'editor-mode'
+              );
+
+            }
+        );
+
+    /* -----------------------------------------
+       Save
+    ----------------------------------------- */
 
     document
-        .getElementById(
-            'guest-preview'
-        )
-        .onclick = () => {
-
-      if (!publicId) {
-        setStatus(
-            'Guest guide ID is missing.',
-            false
+        .getElementById('save-guide')
+        .addEventListener(
+            'click',
+            saveGuide
         );
 
-        return;
-      }
-
-      window.open(
-          '/g/' +
-          encodeURIComponent(publicId),
-          '_blank'
-      );
-
-    };
-
-
-    /* =======================================================
-       COPY GUEST LINK
-       ======================================================= */
+    /* -----------------------------------------
+       Preview
+    ----------------------------------------- */
 
     document
-        .getElementById(
-            'copy-link'
-        )
-        .onclick = async () => {
+        .getElementById('guest-preview')
+        .addEventListener(
+            'click',
+            function () {
 
-      if (!publicId) {
-        setStatus(
-            'Guest guide ID is missing.',
-            false
+              if (!publicId) {
+                setStatus(
+                    'Guest guide ID is missing.',
+                    false
+                );
+                return;
+              }
+
+              const url =
+                  '/g/' +
+                  encodeURIComponent(publicId);
+
+              window.open(
+                  url,
+                  '_blank',
+                  'noopener'
+              );
+
+            }
         );
 
-        return;
-      }
+    /* -----------------------------------------
+       Copy guest link
+    ----------------------------------------- */
 
-      try {
-
-        const url =
-            new URL(
-                '/g/' + publicId,
-                location.origin
-            ).href;
-
-
-        await navigator.clipboard.writeText(
-            url
+    document
+        .getElementById('copy-link')
+        .addEventListener(
+            'click',
+            copyGuestLink
         );
 
+    /* -----------------------------------------
+       Keyboard shortcut
+       Ctrl + S
+    ----------------------------------------- */
 
-        setStatus(
-            'Guest link copied!'
-        );
+    document.addEventListener(
+        'keydown',
+        function editorKeyboardShortcut(event) {
 
-      } catch (error) {
+          if (
+              event.ctrlKey &&
+              event.key.toLowerCase() === 's' &&
+              document.getElementById(
+                  'editor-panel'
+              )
+          ) {
 
-        console.error(error);
+            event.preventDefault();
 
-        setStatus(
-            'Unable to copy the guest link.',
-            false
-        );
+            saveGuide();
+          }
 
-      }
-
-    };
-
+        }
+    );
   }
 
-
   /* =========================================================
-     EDITOR STATUS
-     ========================================================= */
+     STATUS MESSAGE
+  ========================================================= */
 
-  function setStatus(
-      message,
-      good = true
-  ) {
+  function setStatus(message, good = true) {
 
-    const el =
+    const element =
         document.getElementById(
             'editor-status'
         );
 
-    if (!el) return;
+    if (!element) return;
 
-    el.textContent =
-        message;
+    element.textContent = message;
 
-    el.classList.toggle(
+    element.classList.toggle(
         'error',
         !good
     );
 
   }
 
-
   /* =========================================================
-     SAVE GUIDE
-     ========================================================= */
+     COLLECT FORM DATA
+  ========================================================= */
 
-  async function saveGuide() {
+  function collectChanges() {
 
     const fields = [
       'property_name',
@@ -989,63 +851,79 @@
       'host_phone'
     ];
 
-
     const values = {};
 
-
-    fields.forEach(key => {
+    fields.forEach(function (key) {
 
       const input =
           document.getElementById(
               'e-' + key
           );
 
+      if (!input) {
+        values[key] = null;
+        return;
+      }
+
+      const value =
+          input.value.trim();
+
       values[key] =
-          input &&
-          input.value.trim()
-              ? input.value.trim()
-              : null;
+          value === ''
+              ? null
+              : value;
 
     });
 
+    return values;
+  }
+
+  /* =========================================================
+     SAVE GUIDE
+  ========================================================= */
+
+  async function saveGuide() {
+
+    if (!editorToken) {
+      setStatus(
+          'Editor token is missing.',
+          false
+      );
+      return;
+    }
 
     const button =
         document.getElementById(
             'save-guide'
         );
 
-
     if (!button) return;
 
+    const values =
+        collectChanges();
 
     button.disabled = true;
     button.textContent = 'Saving…';
-
 
     setStatus(
         'Saving changes…'
     );
 
-
     try {
 
-      const {
-        data,
-        error
-      } = await client.rpc(
-          'update_guide_by_token',
-          {
-            p_edit_token: editorToken,
-            p_changes: values
-          }
-      );
+      const result =
+          await client.rpc(
+              'update_guide_by_token',
+              {
+                p_edit_token: editorToken,
+                p_changes: values
+              }
+          );
 
+      const data = result.data;
+      const error = result.error;
 
       if (error) {
-
-        button.disabled = false;
-        button.textContent =
-            'Save Changes';
 
         setStatus(
             'Could not save: ' +
@@ -1056,63 +934,145 @@
         return;
       }
 
-
       guide =
           Array.isArray(data)
               ? data[0]
               : data;
 
-
-      applyGuide(
-          guide || values
-      );
-
-
-      button.disabled = false;
-      button.textContent =
-          'Save Changes';
-
+      if (guide) {
+        applyGuide(guide);
+      } else {
+        applyGuide(values);
+      }
 
       setStatus(
           'Saved successfully ✓'
       );
 
-
     } catch (error) {
 
-      console.error(error);
+      setStatus(
+          'Could not save: ' +
+          error.message,
+          false
+      );
+
+    } finally {
 
       button.disabled = false;
       button.textContent =
           'Save Changes';
 
+    }
+  }
+
+  /* =========================================================
+     COPY GUEST LINK
+  ========================================================= */
+
+  async function copyGuestLink() {
+
+    if (!publicId) {
 
       setStatus(
-          'Could not save changes.',
+          'Guest guide ID is missing.',
           false
       );
 
+      return;
     }
 
-  }
+    const url =
+        new URL(
+            '/g/' +
+            encodeURIComponent(publicId),
+            location.origin
+        ).href;
 
+    try {
+
+      await navigator.clipboard.writeText(
+          url
+      );
+
+      setStatus(
+          'Guest link copied ✓'
+      );
+
+    } catch (error) {
+
+      // Fallback for browsers that block clipboard
+      try {
+
+        const temporary =
+            document.createElement('input');
+
+        temporary.value = url;
+
+        document.body.appendChild(
+            temporary
+        );
+
+        temporary.select();
+
+        document.execCommand(
+            'copy'
+        );
+
+        temporary.remove();
+
+        setStatus(
+            'Guest link copied ✓'
+        );
+
+      } catch (fallbackError) {
+
+        setStatus(
+            'Could not copy the link. Please copy it manually.',
+            false
+        );
+
+      }
+
+    }
+  }
 
   /* =========================================================
      INITIALIZE
-     ========================================================= */
+  ========================================================= */
 
   async function init() {
 
-    const r = route();
+    const currentRoute =
+        route();
 
+    /* -----------------------------------------
+       Check Supabase library
+    ----------------------------------------- */
 
-    /* ---------------------------------------------------------
-       CHECK SUPABASE CONFIG
-       --------------------------------------------------------- */
+    if (
+        !window.supabase ||
+        typeof window.supabase.createClient !==
+        'function'
+    ) {
+
+      showSetupError(
+          'Supabase JavaScript library is not loaded. Make sure the Supabase CDN script is included before editor.js.'
+      );
+
+      return;
+    }
+
+    /* -----------------------------------------
+       Check configuration
+    ----------------------------------------- */
 
     if (!configReady()) {
 
-      if (r.mode === 'edit') {
+      if (
+          currentRoute.mode ===
+          'edit'
+      ) {
 
         showSetupError(
             'Open supabase-config.js and add your Supabase Project URL and anon key.'
@@ -1123,64 +1083,61 @@
       return;
     }
 
+    /* -----------------------------------------
+       Create Supabase client
+    ----------------------------------------- */
 
-    /* ---------------------------------------------------------
-       CREATE SUPABASE CLIENT
-       --------------------------------------------------------- */
+    client =
+        window.supabase.createClient(
+            window.SUPABASE_URL,
+            window.SUPABASE_ANON_KEY
+        );
 
-    try {
-
-      client =
-          window.supabase.createClient(
-              window.SUPABASE_URL,
-              window.SUPABASE_ANON_KEY
-          );
-
-    } catch (error) {
-
-      console.error(error);
-
-      showSetupError(
-          'Unable to initialize Supabase.'
-      );
-
-      return;
-    }
-
-
-    /* ---------------------------------------------------------
-       ROUTE
-       --------------------------------------------------------- */
+    /* -----------------------------------------
+       Load appropriate page
+    ----------------------------------------- */
 
     if (
-        r.mode === 'edit'
+        currentRoute.mode ===
+        'edit'
     ) {
 
       await loadEditor(
-          r.value
+          currentRoute.value
       );
 
     } else if (
-        r.mode === 'guest' &&
-        r.value
+        currentRoute.mode ===
+        'guest' &&
+        currentRoute.value
     ) {
 
       await loadGuest(
-          r.value
+          currentRoute.value
       );
 
     }
 
   }
 
-
   /* =========================================================
      START
-     ========================================================= */
+  ========================================================= */
 
-  document.addEventListener(
-      'DOMContentLoaded',
-      init
-  );
+  if (
+      document.readyState ===
+      'loading'
+  ) {
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        init
+    );
+
+  } else {
+
+    init();
+
+  }
 
 })();
